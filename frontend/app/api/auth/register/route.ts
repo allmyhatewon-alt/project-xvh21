@@ -1,0 +1,70 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
+import { signSessionToken, setSessionCookie } from "@/lib/auth";
+
+const schema = z.object({
+  username: z
+    .string()
+    .min(2)
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, underscores"),
+  displayName: z.string().min(1).max(50),
+  email: z.string().email(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
+    }
+
+    const { username, displayName, email, password } = parsed.data;
+    const usernameLc = username.toLowerCase();
+    const emailLc = email.toLowerCase().trim();
+
+    const [existingEmail, existingUsername] = await Promise.all([
+      prisma.user.findUnique({ where: { email: emailLc }, select: { id: true } }),
+      prisma.user.findUnique({ where: { username: usernameLc }, select: { id: true } }),
+    ]);
+
+    if (existingEmail) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+    if (existingUsername) {
+      return NextResponse.json({ error: "Username already taken" }, { status: 409 });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const user = await prisma.$transaction(async (tx) => {
+      const u = await tx.user.create({
+        data: {
+          username: usernameLc,
+          displayName,
+          email: emailLc,
+          passwordHash,
+          emailVerified: new Date(),
+        },
+        select: { id: true, username: true },
+      });
+      await tx.hubProfile.create({
+        data: { userId: u.id, portalLabel: "Enter My Links" },
+      });
+      await tx.space.create({ data: { userId: u.id, blocks: "[]" } });
+      return u;
+    });
+
+    const token = await signSessionToken(user.id);
+    await setSessionCookie(token);
+
+    return NextResponse.json({ ok: true, username: user.username });
+  } catch (err) {
+    console.error("[register]", err);
+    return NextResponse.json({ error: "Something went wrong" }, { status: 500 });
+  }
+}

@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Next.js
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.*
+*.env
+!.env.example
+!frontend/.env.example
+credentials.json
+*.pem
+*.key
+.credentials
+
+# Prisma
+prisma/*.db
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Local agent and scratch folders
+.claude/
+.emergent/
+memory/
+workingon-main/
+main/
+
+# Large audio files - host on R2, not git
+public/bg/*.mp3
+public/bg/*.wav
+frontend/public/bg/*.mp3
+frontend/public/bg/*.wav
+
+# Generated previews and local uploads
+frontend/.codex-*.png
+frontend/public/uploads/

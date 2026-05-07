@@ -1,0 +1,12 @@
+services:
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: pengelus-mediamtx
+    restart: unless-stopped
+    ports:
+      - "1935:1935" # RTMP ingest
+      - "8888:8888" # HLS playback
+      - "8889:8889" # WebRTC playback
+      - "9997:9997" # MediaMTX API
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro

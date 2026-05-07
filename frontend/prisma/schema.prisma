@@ -1,0 +1,435 @@
+// PENG hub Prisma schema — SQLite for local dev, swap provider to "postgresql" for prod
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────
+// CORE USER
+// ─────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  displayName   String
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  image         String?
+  bio           String?
+  status        String?
+  bannerUrl     String?
+  accentColor   String    @default("#8a2be2")
+  role          String    @default("USER") // USER | MOD | ADMIN
+
+  // Economy — denormalized for O(1) balance reads
+  shards        Int       @default(0)
+  gems          Int       @default(0)
+  xp            Int       @default(0)
+  level         Int       @default(1)
+
+  // Streaks
+  streakCount   Int       @default(0)
+  longestStreak Int       @default(0)
+  lastCheckIn   DateTime?
+
+  // Flags
+  onboarded     Boolean   @default(false)
+  gemsUnlocked  Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  hubProfile      HubProfile?
+  space           Space?
+  inventory       InventoryItem[]
+  transactions    Transaction[]
+  checkIns        CheckIn[]
+  achievements    UserAchievement[]
+  uploads         AudioUpload[]
+  posts           Post[]
+  comments        Comment[]
+  chatMessages    ChatMessage[]
+  liveStream      LiveStream?
+  moderationActions ModerationAction[] @relation("ModeratorActions")
+  restrictions    UserRestriction[] @relation("RestrictedUser")
+  guestbookEntries GuestbookEntry[] @relation("GuestbookOwner")
+  guestbookSigned GuestbookEntry[] @relation("GuestbookSigner")
+  profileEventsOwned ProfileEvent[] @relation("ProfileEventOwner")
+  profileEventsViewed ProfileEvent[] @relation("ProfileEventViewer")
+  postVotes       PostVote[]
+  follows         Follow[]    @relation("Follower")
+  followers       Follow[]    @relation("Following")
+}
+
+// ─────────────────────────────────────────────────────────
+// HUB PROFILE — the "Social ID" at /hub/user/@username
+// ─────────────────────────────────────────────────────────
+
+model HubProfile {
+  id            String  @id @default(cuid())
+  userId        String  @unique
+
+  portalEnabled Boolean @default(true)
+  portalLabel   String  @default("Enter My Links")
+
+  activeSkinId  String?
+  activeAuraId  String?
+
+  tiktokUrl     String?
+  twitchUrl     String?
+  youtubeUrl    String?
+  kickUrl       String?
+  discordUser   String?
+  twitterUrl    String?
+  instagramUrl  String?
+
+  showStats     Boolean @default(true)
+  showStreak    Boolean @default(true)
+
+  // Showcase: serialized blocks rendered on the Hub Profile (mini-landing)
+  showcase      String  @default("[]")
+
+  interests     String  @default("[]") // JSON string array
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────
+// SPACE — the "Personal Domain" at /@username
+// ─────────────────────────────────────────────────────────
+
+model Space {
+  id           String  @id @default(cuid())
+  userId       String  @unique
+
+  published    Boolean @default(true)
+  blocks       String  @default("[]") // JSON string
+
+  customCss    String?
+  bootSequence String?
+
+  metaTitle       String?
+  metaDescription String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────
+// COMMUNITY — boards, posts, comments, votes
+// ─────────────────────────────────────────────────────────
+
+model Board {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  icon        String?
+  postCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  posts       Post[]
+}
+
+model Post {
+  id          String   @id @default(cuid())
+  boardId     String
+  authorId    String
+  title       String
+  body        String
+  flair       String?  // "FAN DISCUSSION", "CLIP", etc.
+  voteScore   Int      @default(0)
+  commentCount Int     @default(0)
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  board    Board     @relation(fields: [boardId], references: [id])
+  author   User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  votes    PostVote[]
+
+  @@index([boardId, createdAt])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model PostVote {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  value  Int    // -1 or +1
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+// ─────────────────────────────────────────────────────────
+// SHOP CATALOG
+// ─────────────────────────────────────────────────────────
+
+model CatalogItem {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  type        String    // BLOCK | SKIN | AURA | BOOT_SEQ | BADGE | MUSIC_PACK
+  tier        String    // FREE | SHARD | GEM
+  price       Int       @default(0)
+  previewUrl  String?
+  metadata    String?   // JSON string
+
+  createdAt   DateTime  @default(now())
+
+  inventory   InventoryItem[]
+}
+
+model InventoryItem {
+  id          String    @id @default(cuid())
+  userId      String
+  itemId      String
+  equippedAt  DateTime?
+
+  createdAt   DateTime  @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item        CatalogItem @relation(fields: [itemId], references: [id])
+
+  @@unique([userId, itemId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────
+// ECONOMY LEDGER
+// ─────────────────────────────────────────────────────────
+
+model Transaction {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // CHECK_IN_REWARD | STREAK_BONUS | etc.
+  currency  String   // SHARD | GEM | XP
+  amount    Int
+  balance   Int
+  metadata  String?  // JSON string
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model CheckIn {
+  id           String   @id @default(cuid())
+  userId       String
+  date         String   // "YYYY-MM-DD"
+  streak       Int
+  multiplier   Float    @default(1.0)
+  shardsEarned Int
+
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
+
+model Achievement {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String
+  iconEmoji   String  @default("◈")
+  xpReward    Int     @default(0)
+  shardReward Int     @default(0)
+
+  users UserAchievement[]
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@id([userId, achievementId])
+}
+
+// ─────────────────────────────────────────────────────────
+// MP3 UPLOADS — local storage in dev, S3/R2 in prod
+// ─────────────────────────────────────────────────────────
+
+// Hub-wide live chat. Anyone can read, signed-in users can write.
+model ChatMessage {
+  id        String   @id @default(cuid())
+  authorId  String
+  roomKey   String   @default("hub")
+  body      String
+  createdAt DateTime @default(now())
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([roomKey, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model LiveStream {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  title       String   @default("live on pengelus")
+  category    String   @default("just chatting")
+  platform    String   @default("custom") // twitch | kick | youtube | hls | custom
+  sourceUrl   String?
+  embedUrl    String?
+  thumbnailUrl String?
+  widgets     String   @default("[]")
+  widgetKey   String?  @unique
+  ttsSettings String   @default("{}")
+  isLive      Boolean  @default(false)
+  viewerCount Int      @default(0)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isLive, updatedAt])
+  @@index([startedAt])
+}
+
+model ModerationAction {
+  id          String   @id @default(cuid())
+  moderatorId String
+  targetUsername String?
+  command     String
+  reason      String?
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  moderator User @relation("ModeratorActions", fields: [moderatorId], references: [id], onDelete: Cascade)
+
+  @@index([moderatorId, createdAt])
+  @@index([targetUsername, createdAt])
+}
+
+model UserRestriction {
+  id          String   @id @default(cuid())
+  userId      String
+  kind        String   // CHAT_BAN | CHAT_MUTE
+  reason      String?
+  expiresAt   DateTime?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user User @relation("RestrictedUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, active])
+  @@index([expiresAt])
+}
+
+model GuestbookEntry {
+  id        String   @id @default(cuid())
+  ownerId   String
+  signerId  String?
+  name      String
+  body      String
+  hidden    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  owner  User  @relation("GuestbookOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  signer User? @relation("GuestbookSigner", fields: [signerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, createdAt])
+  @@index([signerId])
+}
+
+model ProfileEvent {
+  id        String   @id @default(cuid())
+  ownerId   String
+  viewerId  String?
+  type      String
+  target    String?
+  createdAt DateTime @default(now())
+
+  owner  User  @relation("ProfileEventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  viewer User? @relation("ProfileEventViewer", fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, type, createdAt])
+  @@index([viewerId, createdAt])
+}
+
+model AudioUpload {
+  id        String  @id @default(cuid())
+  userId    String
+  filename  String
+  storageKey String  @unique // local path or R2 key
+  url       String
+  duration  Int?
+  sizeBytes Int?
+  title     String?
+  artist    String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model ChatBotCommand {
+  id        String   @id @default(cuid())
+  trigger   String   @unique
+  response  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

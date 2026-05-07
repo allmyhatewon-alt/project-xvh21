@@ -1,0 +1,27 @@
+# Pengelus local MediaMTX starter config.
+# Do not put production secrets in this file.
+
+logLevel: info
+
+rtmp: yes
+rtmpAddress: :1935
+
+hls: yes
+hlsAddress: :8888
+hlsAllowOrigins:
+  - "*"
+hlsVariant: lowLatency
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigins:
+  - "*"
+
+api: yes
+apiAddress: :9997
+
+paths:
+  all:
+    source: publisher

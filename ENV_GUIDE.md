@@ -55,6 +55,9 @@ This file tells you exactly **where every config goes** and what each API route 
 | `R2_PUBLIC_URL` | Public bucket base URL or custom domain, for example `https://assets.pengelus.me`. Server routes use this to return real public file URLs after upload. |
 | `NEXT_PUBLIC_R2_PUBLIC_URL` | Client-safe copy of the same public bucket base URL. Use this when frontend code needs to read public assets directly from R2. |
 | `NEXT_PUBLIC_MUSIC_BASE_URL` | Optional override for landing-page music. Point it at the public R2 bucket/custom domain and the player will request tracks from `<base>/bg/<filename>`. |
+| `RESEND_API_KEY` | Resend API key for verification emails. |
+| `EMAIL_FROM` | Sender for auth mail, recommended value `Pengelus <noreply@pengelus.me>`. |
+| `SITE_URL` | Public fallback app URL for verification links if `NEXTAUTH_URL` is not set. |
 
 After editing `.env`: run `sudo supervisorctl restart frontend`.
 

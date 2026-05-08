@@ -45,7 +45,8 @@ export default function SignupPage() {
         setError(typeof d.error === "string" ? d.error : "Something went wrong");
         return;
       }
-      window.location.href = "/hub";
+      const email = encodeURIComponent(form.email.trim().toLowerCase());
+      window.location.href = `/auth/verify-email?sent=1&email=${email}`;
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -71,7 +72,7 @@ export default function SignupPage() {
           join pengelus
         </h1>
         <p className="text-xs text-center opacity-40 mb-8" style={{ fontFamily: "var(--font-mono)" }}>
-          create your identity
+          make your account, then verify your email
         </p>
 
         <form onSubmit={submit} className="flex flex-col gap-4" data-testid="signup-form">

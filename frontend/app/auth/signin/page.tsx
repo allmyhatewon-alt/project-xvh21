@@ -6,6 +6,7 @@ import Link from "next/link";
 function SigninForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/hub";
+  const verified = searchParams.get("verified") === "1";
   const [form, setForm] = useState({ identifier: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,6 +46,12 @@ function SigninForm() {
         <p className="text-xs text-center opacity-40 mb-8" style={{ fontFamily: "var(--font-mono)" }}>
           welcome back
         </p>
+
+        {verified && (
+          <p className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-xs text-emerald-200" style={{ fontFamily: "var(--font-mono)" }}>
+            email verified. you can sign in now.
+          </p>
+        )}
 
         <form onSubmit={submit} className="flex flex-col gap-4" data-testid="signin-form">
           <div>

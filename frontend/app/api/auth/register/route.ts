@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { signSessionToken, setSessionCookie } from "@/lib/auth";
 import { getSiteSettings } from "@/lib/site-settings";
+import { issueAndSendVerification } from "@/lib/email-verification";
 
 const schema = z.object({
   username: z
@@ -54,9 +54,9 @@ export async function POST(req: NextRequest) {
           displayName,
           email: emailLc,
           passwordHash,
-          emailVerified: new Date(),
+          emailVerified: null,
         },
-        select: { id: true, username: true },
+        select: { id: true, username: true, email: true },
       });
       await tx.hubProfile.create({
         data: { userId: u.id, portalLabel: "Enter My Links" },
@@ -65,10 +65,17 @@ export async function POST(req: NextRequest) {
       return u;
     });
 
-    const token = await signSessionToken(user.id);
-    await setSessionCookie(token);
+    try {
+      await issueAndSendVerification(user.id, user.email, user.username);
+    } catch (mailErr) {
+      console.error("[register:verification-email]", mailErr);
+      return NextResponse.json(
+        { error: "Your account was made, but we could not send the verification email. Try again from sign in." },
+        { status: 503 },
+      );
+    }
 
-    return NextResponse.json({ ok: true, username: user.username });
+    return NextResponse.json({ ok: true, username: user.username, requiresVerification: true });
   } catch (err) {
     console.error("[register]", err);
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 });

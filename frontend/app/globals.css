@@ -414,6 +414,38 @@ body {
   pointer-events: none;
 }
 
+.audio-volume-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 10.5rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 13, 22, 0.56);
+}
+
+.audio-volume-toggle {
+  min-width: 2.7rem;
+  padding-left: 0.45rem !important;
+  padding-right: 0.45rem !important;
+  opacity: 0.9 !important;
+}
+
+.audio-volume-slider {
+  width: 5rem;
+  accent-color: #8b5cf6;
+  height: 2px;
+}
+
+.audio-volume-value {
+  min-width: 2.25rem;
+  color: rgba(241, 245, 249, 0.76);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-align: right;
+}
+
 /* ═══════════════════════════════════════════════════════════
    ALIVE UI — floating stats, orbits, particles, cursor glow
    ═══════════════════════════════════════════════════════════ */
@@ -4778,6 +4810,14 @@ body {
   }
   #audio-player-dock .audio-dock-label {
     display: none;
+  }
+  .audio-volume-wrap {
+    min-width: 0;
+    gap: 0.35rem;
+    padding: 0.16rem 0.34rem;
+  }
+  .audio-volume-slider {
+    width: 3.4rem;
   }
 }
 .profile-role-crown {

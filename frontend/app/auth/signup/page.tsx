@@ -9,8 +9,14 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
 
   const checkUsername = useCallback((val: string) => {
-    if (val.length < 2) { setUname("idle"); return; }
-    if (!/^[a-zA-Z0-9_]+$/.test(val)) { setUname("invalid"); return; }
+    if (val.length < 2) {
+      setUname("idle");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(val)) {
+      setUname("invalid");
+      return;
+    }
     setUname("checking");
     fetch(`/api/auth/check-username?username=${encodeURIComponent(val)}`)
       .then((r) => r.json())
@@ -35,8 +41,10 @@ export default function SignupPage() {
         body: JSON.stringify(form),
       });
       const d = await r.json();
-      if (!r.ok) { setError(typeof d.error === "string" ? d.error : "Something went wrong"); return; }
-      // Already signed in via the cookie set by /api/auth/register
+      if (!r.ok) {
+        setError(typeof d.error === "string" ? d.error : "Something went wrong");
+        return;
+      }
       window.location.href = "/hub";
     } catch {
       setError("Network error. Try again.");
@@ -47,8 +55,8 @@ export default function SignupPage() {
 
   const unameHint = {
     idle: null,
-    checking: <span className="text-xs opacity-40">checking…</span>,
-    ok: <span className="text-xs text-green-400">available ✓</span>,
+    checking: <span className="text-xs opacity-40">checking...</span>,
+    ok: <span className="text-xs text-green-400">available</span>,
     taken: <span className="text-xs text-red-400">already taken</span>,
     invalid: <span className="text-xs text-yellow-400">letters, numbers, _ only</span>,
   }[uname];
@@ -57,7 +65,7 @@ export default function SignupPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-20">
       <div className="w-full max-w-sm">
         <Link href="/" className="block text-center text-xs opacity-40 mb-8 hover:opacity-80" data-testid="back-to-landing-link" style={{ fontFamily: "var(--font-mono)" }}>
-          ← back to landing
+          {"<- back to landing"}
         </Link>
         <h1 className="text-2xl font-black text-white mb-1 text-center" style={{ fontFamily: "var(--font-syne)" }}>
           join pengelus
@@ -132,7 +140,7 @@ export default function SignupPage() {
             disabled={loading || uname === "taken" || uname === "invalid" || uname === "checking"}
             className="peng-btn peng-btn-primary w-full py-3 mt-2 disabled:opacity-40"
           >
-            {loading ? "creating…" : "Create Account"}
+            {loading ? "creating..." : "Create Account"}
           </button>
 
           <p className="text-center text-xs opacity-40" style={{ fontFamily: "var(--font-mono)" }}>

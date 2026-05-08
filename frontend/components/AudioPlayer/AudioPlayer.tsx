@@ -3,6 +3,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { MUSIC_PLAYLIST, FALLBACK_PLAYLIST, type MusicTrack } from "@/lib/music-config";
 
+const VOLUME_KEY = "peng:landing-volume";
+const MUTED_KEY = "peng:landing-muted";
+
 function shuffled<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -32,8 +35,17 @@ export function AudioPlayer() {
   const [idx, setIdx] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
+  const [muted, setMuted] = useState(false);
   const [cleanMode, setCleanMode] = useState(false);
   const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const savedVolume = Number(window.localStorage.getItem(VOLUME_KEY));
+    if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) {
+      setVolume(savedVolume);
+    }
+    setMuted(window.localStorage.getItem(MUTED_KEY) === "1");
+  }, []);
 
   // Build playlist: 1) hard-coded config (preferred) 2) user uploads 3) fallback
   useEffect(() => {
@@ -117,6 +129,7 @@ export function AudioPlayer() {
     if (!audioRef.current || !track) return;
     audioRef.current.src = encodeAssetPath(track.url);
     audioRef.current.volume = volume;
+    audioRef.current.muted = muted;
   }
 
   function play() {
@@ -148,8 +161,30 @@ export function AudioPlayer() {
   function onVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = parseFloat(e.target.value);
     setVolume(v);
+    window.localStorage.setItem(VOLUME_KEY, String(v));
+    if (v > 0 && muted) {
+      setMuted(false);
+      window.localStorage.setItem(MUTED_KEY, "0");
+      if (audioRef.current) audioRef.current.muted = false;
+    }
     if (audioRef.current) audioRef.current.volume = v;
   }
+
+  function toggleMute() {
+    const nextMuted = !muted;
+    setMuted(nextMuted);
+    window.localStorage.setItem(MUTED_KEY, nextMuted ? "1" : "0");
+    if (audioRef.current) {
+      audioRef.current.muted = nextMuted;
+    }
+  }
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+      audioRef.current.muted = muted;
+    }
+  }, [volume, muted]);
 
   if (!visible) return null;
 
@@ -175,18 +210,31 @@ export function AudioPlayer() {
           {playing ? "pause" : "play"}
         </button>
         <button onClick={skip} className="peng-btn peng-btn-ghost px-3 py-1 text-xs" title="skip" data-testid="audio-skip-button">skip</button>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={volume}
-          onChange={onVolumeChange}
-          className="w-20 accent-purple-500"
-          style={{ height: "2px" }}
-          title="volume"
-          data-testid="audio-volume-slider"
-        />
+        <div className="audio-volume-wrap" data-testid="audio-volume-wrap">
+          <button
+            type="button"
+            onClick={toggleMute}
+            className="peng-btn peng-btn-ghost audio-volume-toggle px-2 py-1 text-xs"
+            title={muted || volume === 0 ? "unmute" : "mute"}
+            data-testid="audio-mute-button"
+          >
+            {muted || volume === 0 ? "mute" : "vol"}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={volume}
+            onChange={onVolumeChange}
+            className="audio-volume-slider"
+            title="volume"
+            data-testid="audio-volume-slider"
+          />
+          <span className="audio-volume-value" data-testid="audio-volume-value">
+            {muted ? "0%" : `${Math.round(volume * 100)}%`}
+          </span>
+        </div>
         <button
           onClick={() => setCleanMode((c) => !c)}
           className="peng-btn peng-btn-ghost px-2 py-1 text-xs opacity-50 hover:opacity-100"

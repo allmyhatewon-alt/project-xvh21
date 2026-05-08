@@ -5,7 +5,7 @@ import { z } from "zod";
 import { signSessionToken, setSessionCookie } from "@/lib/auth";
 
 const schema = z.object({
-  email: z.string().email(),
+  identifier: z.string().trim().min(1),
   password: z.string().min(1),
 });
 
@@ -16,10 +16,14 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid email or password" }, { status: 400 });
     }
-    const { email, password } = parsed.data;
+    const { identifier, password } = parsed.data;
+    const normalized = identifier.toLowerCase().trim();
+    const lookup = normalized.includes("@")
+      ? { email: normalized }
+      : { username: normalized };
 
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+      where: lookup,
       select: { id: true, passwordHash: true, username: true },
     });
 

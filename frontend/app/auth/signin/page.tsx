@@ -1,13 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense } from "react";
 
 function SigninForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/hub";
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ identifier: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -23,7 +22,7 @@ function SigninForm() {
       });
       const d = await r.json();
       if (!r.ok) {
-        setError(typeof d.error === "string" ? d.error : "Invalid email or password");
+        setError(typeof d.error === "string" ? d.error : "Invalid email, username, or password");
         return;
       }
       window.location.href = callbackUrl;
@@ -38,7 +37,7 @@ function SigninForm() {
     <div className="min-h-screen flex items-center justify-center px-4 py-20">
       <div className="w-full max-w-sm">
         <Link href="/" className="block text-center text-xs opacity-40 mb-8 hover:opacity-80" data-testid="back-to-landing-link" style={{ fontFamily: "var(--font-mono)" }}>
-          ← back to landing
+          {"<- back to landing"}
         </Link>
         <h1 className="text-2xl font-black text-white mb-1 text-center" style={{ fontFamily: "var(--font-syne)" }}>
           sign in
@@ -49,12 +48,13 @@ function SigninForm() {
 
         <form onSubmit={submit} className="flex flex-col gap-4" data-testid="signin-form">
           <div>
-            <label className="block text-xs opacity-50 mb-1" style={{ fontFamily: "var(--font-mono)" }}>email</label>
+            <label className="block text-xs opacity-50 mb-1" style={{ fontFamily: "var(--font-mono)" }}>email or username</label>
             <input
               data-testid="signin-email-input"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              type="text"
+              value={form.identifier}
+              onChange={(e) => setForm((f) => ({ ...f, identifier: e.target.value }))}
+              placeholder="email@example.com or peng"
               required
               className="w-full bg-[var(--bg-surface)] border border-[var(--bg-border)] rounded-[var(--radius)] px-3 py-2 text-sm text-white outline-none focus:border-[var(--accent)] transition-colors"
             />
@@ -82,7 +82,7 @@ function SigninForm() {
             disabled={loading}
             className="peng-btn peng-btn-primary w-full py-3 mt-2 disabled:opacity-40"
           >
-            {loading ? "signing in…" : "Sign In"}
+            {loading ? "signing in..." : "Sign In"}
           </button>
 
           <p className="text-center text-xs opacity-40" style={{ fontFamily: "var(--font-mono)" }}>

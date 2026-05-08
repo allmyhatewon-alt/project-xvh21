@@ -58,6 +58,9 @@ This file tells you exactly **where every config goes** and what each API route 
 
 After editing `.env`: run `sudo supervisorctl restart frontend`.
 
+Important:
+- If your database password contains special characters like `$`, `@`, `:`, `/`, `?`, or `#`, URL-encode the password inside `DATABASE_URL` and `DIRECT_URL`. Example: a password starting with `$` should use `%24` in the connection string.
+
 ---
 
 ## 3. Database commands

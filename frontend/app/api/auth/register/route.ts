@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signSessionToken, setSessionCookie } from "@/lib/auth";
+import { getSiteSettings } from "@/lib/site-settings";
 
 const schema = z.object({
   username: z
@@ -17,6 +18,11 @@ const schema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const settings = await getSiteSettings();
+    if (!settings.publicSignupEnabled) {
+      return NextResponse.json({ error: "Signups are closed right now." }, { status: 403 });
+    }
+
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {

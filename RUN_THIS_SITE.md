@@ -9,6 +9,7 @@ This is the straight path from local preview to a real public site.
 - Dev command: `npm run dev`
 - Database: SQLite at `frontend/prisma/dev.db`
 - Admin login: use the values in `frontend/.env`
+- Production deploys should come from the `main` branch on GitHub.
 
 ## What has to be real before public launch
 

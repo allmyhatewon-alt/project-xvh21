@@ -1,5 +1,7 @@
 import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+const DEFAULT_R2_ACCOUNT_ID = "567d95a512be8bae2ad75bc0627c79c2";
+
 function getEnv(name: string) {
   const value = process.env[name]?.trim().replace(/^["']|["']$/g, "");
   return value ? value : "";
@@ -29,10 +31,11 @@ export function getR2Endpoint() {
   const explicit = getEnv("R2_ENDPOINT");
   if (explicit) return explicit.replace(/\/+$/, "");
 
-  const accountId = getEnv("R2_ACCOUNT_ID")
+  const rawAccountId = getEnv("R2_ACCOUNT_ID")
     .replace(/^https?:\/\//i, "")
     .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
     .replace(/\/.*$/, "");
+  const accountId = /^[a-f0-9]{32}$/i.test(rawAccountId) ? rawAccountId : DEFAULT_R2_ACCOUNT_ID;
 
   return `https://${accountId}.r2.cloudflarestorage.com`;
 }

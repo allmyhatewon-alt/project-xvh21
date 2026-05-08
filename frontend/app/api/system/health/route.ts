@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { prisma, runtimeDatabaseUrl } from "@/lib/prisma";
 import { getR2Endpoint, isR2Configured, listR2Objects } from "@/lib/storage";
 
@@ -29,6 +30,11 @@ function hostFromUrl(value: string | undefined) {
 }
 
 export async function GET() {
+  const user = await getCurrentUser();
+  if (user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const db = {
     envPresent: present("DATABASE_URL"),
     host: hostFromUrl(process.env.DATABASE_URL),

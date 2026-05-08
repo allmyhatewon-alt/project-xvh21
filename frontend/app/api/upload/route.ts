@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isR2Configured, uploadToR2 } from "@/lib/storage";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { z } from "zod";
 
 const ALLOWED = new Set([
   "audio/mpeg",
@@ -59,26 +59,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Save to UPLOAD_DIR/audio/<userId>/<timestamp>-<safe-name>
-  const uploadDirRaw = process.env.UPLOAD_DIR ?? "./public/uploads";
-  const uploadDir = path.isAbsolute(uploadDirRaw)
-    ? uploadDirRaw
-    : path.join(process.cwd(), uploadDirRaw);
   const bucket = kind === "profile_banner" ? "banners" : kind === "profile_image" ? "avatars" : kind === "space_background" ? "backgrounds" : kind === "social_icon" ? "social-icons" : "audio";
-  const userDir = path.join(uploadDir, bucket, user.id);
-  await mkdir(userDir, { recursive: true });
-
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
   const ts = Date.now();
   const fname = `${ts}-${safeName}`;
-  const filePath = path.join(userDir, fname);
-
-  const arrayBuffer = await file.arrayBuffer();
-  await writeFile(filePath, Buffer.from(arrayBuffer));
-
-  const publicBase = process.env.UPLOAD_PUBLIC_PATH ?? "uploads";
-  const publicUrl = `/${publicBase}/${bucket}/${user.id}/${fname}`;
   const storageKey = `${bucket}/${user.id}/${fname}`;
+  const arrayBuffer = await file.arrayBuffer();
+  const body = Buffer.from(arrayBuffer);
+
+  let publicUrl: string;
+  if (isR2Configured()) {
+    publicUrl = await uploadToR2({
+      key: storageKey,
+      body,
+      contentType: file.type,
+    });
+  } else {
+    const uploadDirRaw = process.env.UPLOAD_DIR ?? "./public/uploads";
+    const uploadDir = path.isAbsolute(uploadDirRaw)
+      ? uploadDirRaw
+      : path.join(process.cwd(), uploadDirRaw);
+    const userDir = path.join(uploadDir, bucket, user.id);
+    await mkdir(userDir, { recursive: true });
+    const filePath = path.join(userDir, fname);
+    await writeFile(filePath, body);
+
+    const publicBase = process.env.UPLOAD_PUBLIC_PATH ?? "uploads";
+    publicUrl = `/${publicBase}/${bucket}/${user.id}/${fname}`;
+  }
 
   if (kind.startsWith("profile_") || kind === "space_background" || kind === "social_icon") {
     return NextResponse.json({

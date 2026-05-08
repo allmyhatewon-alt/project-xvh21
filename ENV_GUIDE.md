@@ -51,6 +51,10 @@ This file tells you exactly **where every config goes** and what each API route 
 | `MEDIAMTX_WEBRTC_URL` | MediaMTX WebRTC/browser playback origin, default local value `http://127.0.0.1:8889`. |
 | `MEDIAMTX_RTMP_URL` | MediaMTX RTMP ingest origin for OBS or studio apps, default local value `rtmp://127.0.0.1:1935`. |
 | `MEDIAMTX_PLAYBACK_PROTOCOL` | `hls` or `webrtc`. Pengelus uses this when turning a stream path into an iframe URL. |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` | Cloudflare R2 S3-compatible credentials used by `/api/upload` when you want production-safe storage instead of local disk. |
+| `R2_PUBLIC_URL` | Public bucket base URL or custom domain, for example `https://assets.pengelus.me`. Server routes use this to return real public file URLs after upload. |
+| `NEXT_PUBLIC_R2_PUBLIC_URL` | Client-safe copy of the same public bucket base URL. Use this when frontend code needs to read public assets directly from R2. |
+| `NEXT_PUBLIC_MUSIC_BASE_URL` | Optional override for landing-page music. Point it at the public R2 bucket/custom domain and the player will request tracks from `<base>/bg/<filename>`. |
 
 After editing `.env`: run `sudo supervisorctl restart frontend`.
 

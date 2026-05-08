@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { manifestTracksFromFiles, normalizeMusicFile } from "./music-manifest";
+import { latestMusicFiles, manifestTracksFromFiles, normalizeMusicFile } from "./music-manifest";
 
 test("normalizeMusicFile strips the bg prefix and rejects non-audio entries", () => {
   assert.equal(normalizeMusicFile("bg/dead girl.mp3"), "dead girl.mp3");
@@ -34,4 +34,17 @@ test("manifestTracksFromFiles keeps only unique audio files and passes stripped 
       },
     ],
   );
+});
+
+test("latestMusicFiles returns the newest limited audio files from R2-style entries", () => {
+  const entries = Array.from({ length: 20 }, (_, index) => ({
+    key: `bg/song-${index + 1}.mp3`,
+    lastModified: new Date(2026, 0, index + 1),
+  }));
+
+  const latest = latestMusicFiles(entries, 16);
+
+  assert.equal(latest.length, 16);
+  assert.deepEqual(latest.slice(0, 3), ["song-20.mp3", "song-19.mp3", "song-18.mp3"]);
+  assert.equal(latest.at(-1), "song-5.mp3");
 });

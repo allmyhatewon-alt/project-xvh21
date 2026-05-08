@@ -2,12 +2,30 @@ import { guessTitleFromFile, type MusicTrack, urlForMusicFile } from "@/lib/musi
 
 const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac)$/i;
 
+export type ListedMusicEntry = {
+  key: string;
+  lastModified?: Date | null;
+};
+
 export function normalizeMusicFile(input: string) {
   const trimmed = input.trim().replace(/^\/+/, "").replace(/^bg\//i, "");
   if (!trimmed || trimmed.endsWith("/") || !AUDIO_EXT.test(trimmed)) {
     return null;
   }
   return trimmed;
+}
+
+export function latestMusicFiles(entries: ListedMusicEntry[], limit = 16) {
+  return [...entries]
+    .filter((entry) => normalizeMusicFile(entry.key))
+    .sort((a, b) => {
+      const aTime = a.lastModified ? a.lastModified.getTime() : 0;
+      const bTime = b.lastModified ? b.lastModified.getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit)
+    .map((entry) => normalizeMusicFile(entry.key))
+    .filter((file): file is string => Boolean(file));
 }
 
 export function manifestTracksFromFiles(

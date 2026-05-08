@@ -2,15 +2,16 @@ import { NextResponse } from "next/server";
 import { readdir } from "fs/promises";
 import path from "path";
 import { FALLBACK_PLAYLIST } from "@/lib/music-config";
-import { manifestTracksFromFiles } from "@/lib/music-manifest";
-import { isR2Configured, listR2Keys } from "@/lib/storage";
+import { latestMusicFiles, manifestTracksFromFiles } from "@/lib/music-manifest";
+import { isR2Configured, listR2Objects } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const R2_LATEST_LIMIT = 16;
 
 async function loadFromR2() {
-  const keys = await listR2Keys("bg/");
-  return manifestTracksFromFiles(keys);
+  const objects = await listR2Objects("bg/");
+  return manifestTracksFromFiles(latestMusicFiles(objects, R2_LATEST_LIMIT));
 }
 
 async function loadFromLocal() {

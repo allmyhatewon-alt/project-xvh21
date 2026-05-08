@@ -99,3 +99,36 @@ export async function listR2Keys(prefix: string) {
 
   return keys;
 }
+
+export async function listR2Objects(prefix: string) {
+  const bucket = getEnv("R2_BUCKET_NAME");
+  if (!isR2Configured()) {
+    throw new Error("R2 is not fully configured");
+  }
+
+  const objects: Array<{ key: string; lastModified?: Date }> = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const result = await getR2Client().send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    for (const item of result.Contents ?? []) {
+      if (item.Key) {
+        objects.push({
+          key: item.Key,
+          lastModified: item.LastModified,
+        });
+      }
+    }
+
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return objects;
+}

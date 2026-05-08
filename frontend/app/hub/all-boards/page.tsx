@@ -3,6 +3,8 @@ import { HubShell } from "@/components/Hub/HubShell";
 import { RightRail } from "@/components/Hub/RightRail";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function AllBoardsPage() {
   const boards = await prisma.board.findMany({ orderBy: { postCount: "desc" } });
   return (

@@ -6,6 +6,8 @@ import { CursorPenguins } from "@/components/Landing/CursorPenguins";
 import { EnterHubButton } from "@/components/Landing/EnterHubButton";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function LandingPage() {
   const peng = await prisma.user.findUnique({
     where: { username: "peng" },

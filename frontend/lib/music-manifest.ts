@@ -15,17 +15,35 @@ export function normalizeMusicFile(input: string) {
   return trimmed;
 }
 
-export function latestMusicFiles(entries: ListedMusicEntry[], limit = 16) {
-  return [...entries]
-    .filter((entry) => normalizeMusicFile(entry.key))
+function sortedUniqueMusicFiles(entries: ListedMusicEntry[]): string[] {
+  const seen = new Set<string>();
+
+  const normalized: Array<{ file: string; lastModified?: Date | null }> = [];
+  for (const entry of entries) {
+    const file = normalizeMusicFile(entry.key);
+    if (!file) continue;
+
+    const key = file.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push({ file, lastModified: entry.lastModified });
+  }
+
+  return normalized
     .sort((a, b) => {
       const aTime = a.lastModified ? a.lastModified.getTime() : 0;
       const bTime = b.lastModified ? b.lastModified.getTime() : 0;
       return bTime - aTime;
     })
-    .slice(0, limit)
-    .map((entry) => normalizeMusicFile(entry.key))
-    .filter((file): file is string => Boolean(file));
+    .map((entry) => entry.file);
+}
+
+export function latestMusicFiles(entries: ListedMusicEntry[], limit = 16) {
+  return sortedUniqueMusicFiles(entries).slice(0, limit);
+}
+
+export function olderMusicFiles(entries: ListedMusicEntry[], limit = 20, skipNewest = 16) {
+  return sortedUniqueMusicFiles(entries).slice(skipNewest, skipNewest + limit);
 }
 
 export function manifestTracksFromFiles(

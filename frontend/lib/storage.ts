@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 function getEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -70,4 +70,32 @@ export async function uploadToR2(input: {
   );
 
   return r2PublicUrlForKey(input.key);
+}
+
+export async function listR2Keys(prefix: string) {
+  const bucket = getEnv("R2_BUCKET_NAME");
+  if (!isR2Configured()) {
+    throw new Error("R2 is not fully configured");
+  }
+
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const result = await getR2Client().send(
+      new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    for (const item of result.Contents ?? []) {
+      if (item.Key) keys.push(item.Key);
+    }
+
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
 }

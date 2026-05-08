@@ -6,7 +6,7 @@ export type MusicTrack = {
 
 type RawTrack = Omit<MusicTrack, "url"> & { file: string };
 
-const RAW_PLAYLIST: RawTrack[] = [
+export const FALLBACK_TRACKS: RawTrack[] = [
   { file: "#IHEARTSERVIN.mp3", title: "#IHEARTSERVIN" },
   { file: "@VTLBOSS00 -  #Dead n Gone#  _ prod. @_HollywoodJ _.mp3", title: "#Dead n Gone", artist: "@VTLBOSS00" },
   { file: "Autumn - Outta My Mind! ft. Summrs & Kobe (prod. sadbalmain & eddiegianni).mp3", title: "Outta My Mind!", artist: "Autumn ft. Summrs & Kobe" },
@@ -37,15 +37,16 @@ const RAW_PLAYLIST: RawTrack[] = [
   { file: "yen - messy torture.mp3", title: "messy torture", artist: "yen" },
   { file: "yuke - fangs (feat. jaydes).mp3", title: "fangs", artist: "yuke feat. jaydes" },
   { file: "zombiemode.mp3", title: "zombiemode" },
+  { file: "私は血をすすります、あなたは精液をすすります.mp3", title: "私は血をすすります、あなたは精液をすすります" },
 ];
 
-function publicBase() {
+export function publicMusicBase() {
   const base = process.env.NEXT_PUBLIC_MUSIC_BASE_URL?.trim() || process.env.NEXT_PUBLIC_R2_PUBLIC_URL?.trim() || "";
   return base.replace(/\/+$/, "");
 }
 
-function urlForFile(file: string) {
-  const base = publicBase();
+export function urlForMusicFile(file: string) {
+  const base = publicMusicBase();
   if (base) {
     return `${base}/bg/${file}`;
   }
@@ -55,12 +56,21 @@ function urlForFile(file: string) {
   return "";
 }
 
-export const MUSIC_PLAYLIST: MusicTrack[] = RAW_PLAYLIST
-  .map((track) => ({
-    url: urlForFile(track.file),
-    title: track.title,
-    artist: track.artist,
-  }))
-  .filter((track) => track.url);
+export function buildFallbackPlaylist() {
+  return FALLBACK_TRACKS
+    .map((track) => ({
+      url: urlForMusicFile(track.file),
+      title: track.title,
+      artist: track.artist,
+    }))
+    .filter((track) => track.url);
+}
 
-export const FALLBACK_PLAYLIST: MusicTrack[] = MUSIC_PLAYLIST;
+export const FALLBACK_PLAYLIST: MusicTrack[] = buildFallbackPlaylist();
+
+export function guessTitleFromFile(file: string) {
+  return decodeURIComponent(file)
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_]+/g, " ")
+    .trim();
+}

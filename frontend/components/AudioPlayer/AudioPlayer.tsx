@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { MUSIC_PLAYLIST, FALLBACK_PLAYLIST, type MusicTrack } from "@/lib/music-config";
+import { FALLBACK_PLAYLIST, type MusicTrack } from "@/lib/music-config";
 
 const VOLUME_KEY = "peng:landing-volume";
 const MUTED_KEY = "peng:landing-muted";
@@ -38,6 +38,7 @@ export function AudioPlayer() {
   const [muted, setMuted] = useState(false);
   const [cleanMode, setCleanMode] = useState(false);
   const [started, setStarted] = useState(false);
+  const [loadingTracks, setLoadingTracks] = useState(false);
 
   useEffect(() => {
     const savedVolume = Number(window.localStorage.getItem(VOLUME_KEY));
@@ -47,24 +48,69 @@ export function AudioPlayer() {
     setMuted(window.localStorage.getItem(MUTED_KEY) === "1");
   }, []);
 
-  // Build playlist: 1) hard-coded config (preferred) 2) user uploads 3) fallback
+  function applyPlaylist(nextTracks: MusicTrack[], startFresh = false) {
+    const shuffledTracks = shuffled(nextTracks);
+    setPlaylist(shuffledTracks);
+    setIdx(0);
+    if (startFresh) {
+      setStarted(false);
+      setPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.removeAttribute("src");
+        audioRef.current.load();
+      }
+    }
+  }
+
+  async function loadUploadedTracks() {
+    const response = await fetch("/api/upload");
+    const payload = response.ok ? await response.json() : { uploads: [] };
+    return (payload.uploads ?? []).map((u: any) => ({
+      url: u.url,
+      title: u.title || u.filename,
+      artist: u.artist || undefined,
+    })) as MusicTrack[];
+  }
+
+  // Build playlist: 1) R2/local bg manifest 2) user uploads 3) fallback
   useEffect(() => {
     if (!visible) return;
-    if (MUSIC_PLAYLIST.length) {
-      setPlaylist(shuffled(MUSIC_PLAYLIST));
-      return;
-    }
-    fetch("/api/upload")
-      .then((r) => r.ok ? r.json() : { uploads: [] })
-      .then((d) => {
-        const userTracks: MusicTrack[] = (d.uploads ?? []).map((u: any) => ({
-          url: u.url,
-          title: u.title || u.filename,
-          artist: u.artist || undefined,
-        }));
-        setPlaylist(userTracks.length ? shuffled(userTracks) : FALLBACK_PLAYLIST);
-      })
-      .catch(() => setPlaylist(FALLBACK_PLAYLIST));
+    let cancelled = false;
+
+    const loadPlaylist = async () => {
+      setLoadingTracks(true);
+      try {
+        const response = await fetch("/api/music/manifest");
+        const payload = response.ok ? await response.json() : { tracks: [] };
+        const manifestTracks: MusicTrack[] = Array.isArray(payload.tracks) ? payload.tracks : [];
+
+        if (cancelled) return;
+        if (manifestTracks.length) {
+          applyPlaylist(manifestTracks);
+          return;
+        }
+
+        const uploadedTracks = await loadUploadedTracks();
+        if (cancelled) return;
+        applyPlaylist(uploadedTracks.length ? uploadedTracks : FALLBACK_PLAYLIST);
+      } catch {
+        try {
+          const uploadedTracks = await loadUploadedTracks();
+          if (cancelled) return;
+          applyPlaylist(uploadedTracks.length ? uploadedTracks : FALLBACK_PLAYLIST);
+        } catch {
+          if (!cancelled) applyPlaylist(FALLBACK_PLAYLIST);
+        }
+      } finally {
+        if (!cancelled) setLoadingTracks(false);
+      }
+    };
+
+    loadPlaylist();
+    return () => {
+      cancelled = true;
+    };
   }, [visible]);
 
   // pause + tear down audio whenever we leave the landing page
@@ -186,11 +232,16 @@ export function AudioPlayer() {
     }
   }, [volume, muted]);
 
+  function reshuffle() {
+    if (!playlist.length) return;
+    applyPlaylist(playlist, true);
+  }
+
   if (!visible) return null;
 
   const trackName = started && playlist[idx]
     ? `${playlist[idx].title}${playlist[idx].artist ? " / " + playlist[idx].artist : ""}`
-    : "click play to start";
+    : loadingTracks ? "loading tracks..." : "click play to start";
 
   return (
     <div id="audio-player-dock" className={cleanMode ? "clean-mode" : ""} data-testid="audio-player-dock">
@@ -210,6 +261,7 @@ export function AudioPlayer() {
           {playing ? "pause" : "play"}
         </button>
         <button onClick={skip} className="peng-btn peng-btn-ghost px-3 py-1 text-xs" title="skip" data-testid="audio-skip-button">skip</button>
+        <button onClick={reshuffle} className="peng-btn peng-btn-ghost px-3 py-1 text-xs" title="shuffle" data-testid="audio-shuffle-button">shuffle</button>
         <div className="audio-volume-wrap" data-testid="audio-volume-wrap">
           <button
             type="button"

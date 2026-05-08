@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { isR2Configured, listR2Objects } from "@/lib/storage";
+import { prisma, runtimeDatabaseUrl } from "@/lib/prisma";
+import { getR2Endpoint, isR2Configured, listR2Objects } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +32,7 @@ export async function GET() {
   const db = {
     envPresent: present("DATABASE_URL"),
     host: hostFromUrl(process.env.DATABASE_URL),
+    runtimeHost: hostFromUrl(runtimeDatabaseUrl()),
     ok: false,
     error: null as ReturnType<typeof errorShape> | null,
   };
@@ -52,6 +53,7 @@ export async function GET() {
       bucketName: present("R2_BUCKET_NAME"),
       publicUrl: present("R2_PUBLIC_URL") || present("NEXT_PUBLIC_R2_PUBLIC_URL"),
     },
+    endpointHost: hostFromUrl(getR2Endpoint()),
     ok: false,
     count: 0,
     error: null as ReturnType<typeof errorShape> | null,

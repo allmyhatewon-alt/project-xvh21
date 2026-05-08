@@ -1,7 +1,7 @@
 import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 function getEnv(name: string) {
-  const value = process.env[name]?.trim();
+  const value = process.env[name]?.trim().replace(/^["']|["']$/g, "");
   return value ? value : "";
 }
 
@@ -25,15 +25,26 @@ export function isR2Configured() {
 
 let r2Client: S3Client | null = null;
 
+export function getR2Endpoint() {
+  const explicit = getEnv("R2_ENDPOINT");
+  if (explicit) return explicit.replace(/\/+$/, "");
+
+  const accountId = getEnv("R2_ACCOUNT_ID")
+    .replace(/^https?:\/\//i, "")
+    .replace(/\.r2\.cloudflarestorage\.com.*$/i, "")
+    .replace(/\/.*$/, "");
+
+  return `https://${accountId}.r2.cloudflarestorage.com`;
+}
+
 function getR2Client() {
   if (r2Client) return r2Client;
-  const accountId = getEnv("R2_ACCOUNT_ID");
   const accessKeyId = getEnv("R2_ACCESS_KEY_ID");
   const secretAccessKey = getEnv("R2_SECRET_ACCESS_KEY");
 
   r2Client = new S3Client({
     region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint: getR2Endpoint(),
     forcePathStyle: true,
     credentials: {
       accessKeyId,
